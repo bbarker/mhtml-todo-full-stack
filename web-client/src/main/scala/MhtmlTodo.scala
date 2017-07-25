@@ -7,13 +7,16 @@ import cats.implicits._
 import cats.kernel.Semigroup
 import mhtml._
 import mhtml.implicits.cats._
+import mhtml.future.syntax._
 import org.scalajs.dom
 import org.scalajs.dom.{Event, KeyboardEvent}
 import org.scalajs.dom.ext.KeyCode
-import org.scalajs.dom.ext.LocalStorage
 import org.scalajs.dom.raw.HTMLInputElement
-import upickle.default.read
-import upickle.default.write
+import client.AutowireClient
+import autowire._
+import model._
+
+import scala.util.Success
 
 
 sealed abstract class AbstractComponent[D](view: Node, model: Rx[D])
@@ -25,7 +28,6 @@ case class Component[D](view: Node, model: Rx[D]) extends AbstractComponent[D](v
   */
 case class TaggedComponent[D,T](view: Node, model: Rx[D], tag: T) extends AbstractComponent[D](view, model)
 
-case class Todo(title: String, completed: Boolean)
 
 case class TodoList(text: String, hash: String, items: Rx[List[Todo]])
 
@@ -93,7 +95,7 @@ object MhtmlTodo extends JSApp {
           input.value.trim match {
             case "" =>
             case title =>
-              newTodo := Some(AddEvent(Todo(title, completed = false)))
+              newTodo := Some(AddEvent(Todo(TodoId.random, Title(title), completed = false)))
               input.value = ""
           }
         case _ =>
@@ -136,8 +138,10 @@ object MhtmlTodo extends JSApp {
 
   val anyEvent: Rx[Option[TodoEvent]] = todoListEvent |+| footer.model |+| header.model
 
-  val allTodosSplice: Rx[List[Todo]] =
-    anyEvent.foldp(load()) { (last, ev) => updateState(last, ev) }
+  val allTodosSplice: Rx[List[Todo]] = load().map(loaded =>
+    anyEvent.foldp(loaded { (last, ev) => updateState(last, ev) })
+  )
+
   val allTodosRunner = allTodos |@| allTodosSplice map {
     case (oldTodos, newTodos) =>
       if (oldTodos ne newTodos) {
@@ -159,7 +163,7 @@ object MhtmlTodo extends JSApp {
         case "" =>
           removeTodo := Some(RemovalEvent(todo))
         case trimmedTitle =>
-          updateTodo := Some(UpdateEvent(todo, Todo(trimmedTitle, todo.completed)))
+          updateTodo := Some(UpdateEvent(todo, todo.copy(title = Title(trimmedTitle))))
       }
     }
     def onEditTodoTitle(event: KeyboardEvent): Unit = {
@@ -179,7 +183,7 @@ object MhtmlTodo extends JSApp {
     def onToggleCompleted(event: Event): Unit = {
       event.currentTarget match {
         case input: HTMLInputElement =>
-          updateTodo := Some(UpdateEvent(todo, Todo(todo.title, input.checked)))
+          updateTodo := Some(UpdateEvent(todo, todo.copy(completed = input.checked)))
         case _ =>
       }
     }
@@ -203,13 +207,13 @@ object MhtmlTodo extends JSApp {
                  class="toggle"
                  type="checkbox"
                  checked={ todo.completed } />
-          <label ondblclick={ onDoubleClick _ }>{ todo.title }</label>
+          <label ondblclick={ onDoubleClick _ }>{ todo.title.value }</label>
           <button onclick={ onDelete } class="destroy"></button>
         </div>
         <input onkeydown={ onEditTodoTitle _ }
                id="editInput"
                class="edit"
-               value={ todo.title }
+               value={ todo.title.value }
                onblur={ blurHandler }/>
       </li>
     TaggedComponent(todoListElem, data, todo)
@@ -221,10 +225,10 @@ object MhtmlTodo extends JSApp {
   val mainSection: Component[List[UpdateEvent]] = {
     val todoUpdates = Var[List[UpdateEvent]](Nil)
 
-    def setAllCompleted(todosIn: Seq[Todo], completed: Boolean): List[UpdateEvent] =
+    def setAllCompleted(todosIn: Seq[Todo], allComplete: Boolean): List[UpdateEvent] =
       todosIn.flatMap{
-        case todo if todo.completed != completed =>
-          Some(UpdateEvent(todo, Todo(todo.title, completed)))
+        case todo if todo.completed != allComplete =>
+          Some(UpdateEvent(todo, todo.copy(completed = allComplete)))
         case _ => None
       }(breakOut)
 
@@ -253,13 +257,13 @@ object MhtmlTodo extends JSApp {
   }
 
   //  object Model {
-  val LocalStorageName = "todo.mhtml"
 
-  def load(): List[Todo] =
-    LocalStorage(LocalStorageName).flatMap(read[List[Todo]]).toList
+  def load(): Rx[List[Todo]] = AutowireClient[Api].load().call().toRx.map {
+    case Some(Success(todoList)) => todoList
+    case _ => Nil
+  }
 
-  def save(todos: List[Todo]): Unit =
-    LocalStorage(LocalStorageName) = write(todos)
+  def save(todos: List[Todo]): Unit = AutowireClient[Api].store(todos).call()
 
   val editingTodo: Var[Option[Todo]] = Var[Option[Todo]](None)
 

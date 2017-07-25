@@ -3,14 +3,14 @@ package server
 import model._
 
 object InMemService extends Api {
-  private var memStorage: Seq[Todo] = Nil
+  private var memStorage: List[Todo] = Nil
   
-  def store(data: Seq[Todo]): Unit = {
+  def store(data: List[Todo]): Unit = {
     println(s"Storing $data")
     memStorage = data
   }
   
-  def load(): Seq[Todo] = {
+  def load(): List[Todo] = {
     println(s"Loading $memStorage")
     memStorage
   }

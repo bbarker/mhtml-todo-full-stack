@@ -3,8 +3,8 @@ package model
 import java.util.UUID
 
 trait Api {
-  def store(data: Seq[Todo]): Unit
-  def load(): Seq[Todo]
+  def store(data: List[Todo]): Unit
+  def load(): List[Todo]
 }
 
 case class TodoId(id: UUID)
@@ -21,14 +21,14 @@ case class UnfinishedTitle(value: String) {
   def validated: Option[Title] = Option(value.trim).filterNot(_.isEmpty).map(Title)
 }
 
-case class Todo(id: TodoId, title: Title, isCompleted: Boolean)
+case class Todo(id: TodoId, title: Title, completed: Boolean)
 
 sealed abstract class TodoFilter(val link: String, val title: String, val accepts: Todo => Boolean)
 
 object TodoFilter {
   object All       extends TodoFilter("",          "All",        _ => true)
-  object Active    extends TodoFilter("active",    "Active",    !_.isCompleted)
-  object Completed extends TodoFilter("completed", "Completed",  _.isCompleted)
+  object Active    extends TodoFilter("active",    "Active",    !_.completed)
+  object Completed extends TodoFilter("completed", "Completed",  _.completed)
 
   def values = List[TodoFilter](All, Active, Completed)
 }

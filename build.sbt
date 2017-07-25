@@ -15,7 +15,7 @@ val cats = Def.setting(
 
 val autowireDeps = Def.setting(Seq(   
   "com.lihaoyi" %%% "autowire" % "0.2.6",
-  "com.lihaoyi" %%% "upickle" % "0.4.4"))
+  "io.suzaku" %%% "boopickle" % "1.2.6"))
 
 val mhtmlDeps = Def.setting(Seq(
   "in.nvilla" %%% "monadic-html" % "0.3.2",
