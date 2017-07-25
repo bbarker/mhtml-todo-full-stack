@@ -1,8 +1,7 @@
 val scala211 = "2.11.8"
 val scala212 = "2.12.2"
 val scalaVersionSelect = scala212
-val akkaHttpDep =
-  "com.typesafe.akka" %% "akka-http-experimental" % "2.4.2"
+val akkaHttpDep = "com.typesafe.akka" %% "akka-http" % "10.0.9"
 
 val scalatest = Def.setting(
   "org.scalatest" %%% "scalatest" % "3.2.0-SNAP7" % "test")
@@ -10,9 +9,13 @@ val scalatest = Def.setting(
 val react = Def.setting(
   "com.github.japgolly.scalajs-react" %%% "extra" % "1.1.0")
 
+val cats = Def.setting(
+  "org.typelevel" %%% "cats" % "0.9.0"
+)
+
 val autowireDeps = Def.setting(Seq(   
   "com.lihaoyi" %%% "autowire" % "0.2.6",
-  "io.suzaku" %%% "boopickle" % "1.2.6"))
+  "com.lihaoyi" %%% "upickle" % "0.4.4"))
 
 val mhtmlDeps = Def.setting(Seq(
   "in.nvilla" %%% "monadic-html" % "0.3.2",
