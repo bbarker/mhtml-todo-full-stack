@@ -1,5 +1,7 @@
 package mhtml.todo
 
+import scala.util.Success
+import scala.concurrent.ExecutionContext.Implicits.global
 import scala.scalajs.js.JSApp
 import scala.xml.Node
 import scala.collection.breakOut
@@ -14,9 +16,10 @@ import org.scalajs.dom.ext.KeyCode
 import org.scalajs.dom.raw.HTMLInputElement
 import client.AutowireClient
 import autowire._
+import boopickle.Default._
 import model._
 
-import scala.util.Success
+import scala.concurrent.Future
 
 
 sealed abstract class AbstractComponent[D](view: Node, model: Rx[D])
@@ -138,8 +141,8 @@ object MhtmlTodo extends JSApp {
 
   val anyEvent: Rx[Option[TodoEvent]] = todoListEvent |+| footer.model |+| header.model
 
-  val allTodosSplice: Rx[List[Todo]] = load().map(loaded =>
-    anyEvent.foldp(loaded { (last, ev) => updateState(last, ev) })
+  val allTodosSplice: Rx[List[Todo]] = load().flatMap(loaded =>
+    anyEvent.foldp(loaded)((last, ev) => updateState(last, ev))
   )
 
   val allTodosRunner = allTodos |@| allTodosSplice map {
@@ -263,7 +266,7 @@ object MhtmlTodo extends JSApp {
     case _ => Nil
   }
 
-  def save(todos: List[Todo]): Unit = AutowireClient[Api].store(todos).call()
+  def save(todos: List[Todo]): Future[Unit] = AutowireClient[Api].store(todos).call()
 
   val editingTodo: Var[Option[Todo]] = Var[Option[Todo]](None)
 
@@ -272,9 +275,9 @@ object MhtmlTodo extends JSApp {
   = listComps.toList.map(tlc => (tlc.view, tlc.model)).unzip
 
   case class ModelSources(
-                           headerModel: Option[Todo],
-                           changes:  List[TodoEvent]
-                         )
+   headerModel: Option[Todo],
+   changes:  List[TodoEvent]
+  )
 
   def updateState(currentTodos: List[Todo], evOpt: Option[TodoEvent]): List[Todo] = evOpt match {
     case Some(AddEvent(newTodo)) => newTodo :: currentTodos
